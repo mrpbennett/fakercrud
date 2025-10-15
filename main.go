@@ -1,23 +1,15 @@
 package main
 
-import (
-	"encoding/json"
-	"fmt"
-
-	"github.com/mrpbennett/fakercrud/db"
-	"github.com/mrpbennett/fakercrud/generateuser"
-)
+import "github.com/mrpbennett/fakercrud/db"
 
 // main is the entry point that generates fake users and prints them as JSON.
 // It panics if the JSON marshalling step fails, keeping the example concise.
 func main() {
-	users := generateuser.GenerateUsers(1)
-	jsonData, err := json.MarshalIndent(users, "", " ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(jsonData))
+	// TODO: flush out routes
 
-	// CREATE table
+	// CREATE inital table before user can hit the endpoints...
 	db.CreateInitialTable()
+
+	// ...
+	db.CreateUsers(5)
 }

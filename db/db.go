@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/mrpbennett/fakercrud/generateuser"
 )
 
 func DBConnection() (*sql.DB, error) {
@@ -34,7 +35,46 @@ func CreateInitialTable() error {
 		return fmt.Errorf("unable to create table: %w", err)
 	}
 
-	fmt.Println("Table users created successfully")
+	return nil
+}
+
+func CreateUsers(n int) error {
+	db, err := DBConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// Gerenerate Number of users
+	users := generateuser.GenerateUsers(n)
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("unable to start insert transaction: %w", err)
+	}
+
+	stmt, err := tx.Prepare(`
+		INSERT INTO users (full_name, email, phone, address)
+		VALUES (?, ?, ?, ?)
+	`)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("unable to prepare insert statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, user := range users {
+		if _, err := stmt.Exec(user.FullName, user.Email, user.Phone, user.Address); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("unable to insert user %q: %w", user.Email, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("unable to commit inserted users: %w", err)
+	}
+
+	fmt.Printf("%d users inserted successfully\n", len(users))
 
 	return nil
 }

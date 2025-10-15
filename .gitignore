@@ -28,5 +28,5 @@ go.work.sum
 .env
 
 # Database
-./db/fakercrud.db
+*.db
 
