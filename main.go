@@ -8,8 +8,14 @@ func main() {
 	// TODO: flush out routes
 
 	// CREATE inital table before user can hit the endpoints...
-	db.CreateInitialTable()
+	err := db.CreateInitialTable()
+	if err != nil {
+		return
+	} else {
+		// Populate the user table with 50 users, allowing the user
+		// to use the CRUD endpoints.
+		db.InitialiseUsers(50)
+	}
 
 	// ...
-	db.CreateUsers(50)
 }

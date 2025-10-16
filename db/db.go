@@ -8,6 +8,10 @@ import (
 	"github.com/mrpbennett/fakercrud/generateuser"
 )
 
+// DBConnection establishes and returns a connection to the SQLite database.
+// It opens a connection to the fakercrud.db file located in the ./db directory.
+// Returns a pointer to sql.DB and an error if the connection fails.
+// The caller is responsible for closing the database connection when done.
 func DBConnection() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", "./db/fakercrud.db")
 	if err != nil {
@@ -17,6 +21,11 @@ func DBConnection() (*sql.DB, error) {
 	return db, err
 }
 
+// CreateInitialTable creates the initial users table in the SQLite database if it doesn't exist.
+// The table includes columns for id (auto-increment primary key), full_name, email (unique),
+// phone, and address. It establishes a database connection, creates the table, and closes
+// the connection automatically.
+// Returns an error if the database connection fails or table creation fails.
 func CreateInitialTable() error {
 	db, err := DBConnection()
 	if err != nil {
@@ -25,12 +34,12 @@ func CreateInitialTable() error {
 	defer db.Close()
 
 	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			full_name TEXT NOT NULL,
-			email TEXT NOT NULL UNIQUE,
-			phone TEXT,
-			address TEXT
+		create table if not exists users (
+			id integer primary key autoincrement,
+			full_name text not null,
+			email text not null unique,
+			phone text,
+			address text
 		)`); err != nil {
 		return fmt.Errorf("unable to create table: %w", err)
 	}
@@ -38,7 +47,14 @@ func CreateInitialTable() error {
 	return nil
 }
 
-func CreateUsers(n int) error {
+// InitialiseUsers populates the users table with n randomly generated fake users.
+// It generates fake user data using the generateuser package and inserts them in a
+// single transaction for efficiency. If any insertion fails, the entire transaction
+// is rolled back to maintain data integrity. Upon successful completion, it prints
+// the number of users inserted to stdout.
+// The n parameter specifies the number of users to generate and insert.
+// Returns an error if database connection, transaction, or insertion fails.
+func InitialiseUsers(n int) error {
 	db, err := DBConnection()
 	if err != nil {
 		return err
@@ -53,8 +69,8 @@ func CreateUsers(n int) error {
 	}
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO users (full_name, email, phone, address)
-		VALUES (?, ?, ?, ?)
+		insert into users (full_name, email, phone, address)
+		values (?, ?, ?, ?)
 	`)
 	if err != nil {
 		tx.Rollback()
@@ -78,6 +94,25 @@ func CreateUsers(n int) error {
 	return nil
 }
 
+func CreateUser(fullname string, email string, phone string, address string) error {
+	db, err := DBConnection()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// res, err := db.Exec(`
+	// 	update users
+	// 	set full_name = ?, email = ?, phone = ?, address = ?
+	// 	where id = ?
+	// `,  fullname, email, phone, address)
+	// if err != nil {
+	// 	return fmt.Errorf("unable to update user %d: %w",  err)
+	// }
+
+	return nil
+}
+
 func ReadUser(id int) error {
 	db, err := DBConnection()
 	if err != nil {
@@ -85,14 +120,7 @@ func ReadUser(id int) error {
 	}
 	defer db.Close()
 
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			full_name TEXT NOT NULL,
-			email TEXT NOT NULL UNIQUE,
-			phone TEXT,
-			address TEXT
-		)`); err != nil {
+	if _, err := db.Exec(`select * from users where id = %d`, id); err != nil {
 		return fmt.Errorf("unable to create table: %w", err)
 	}
 
@@ -109,9 +137,9 @@ func UpdateUser(id int, fullname string, email string, phone string, address str
 	defer db.Close()
 
 	res, err := db.Exec(`
-		UPDATE users
-		SET full_name = ?, email = ?, phone = ?, address = ?
-		WHERE id = ?
+		update users
+		set full_name = ?, email = ?, phone = ?, address = ?
+		where id = ?
 	`, id, fullname, email, phone, address)
 	if err != nil {
 		return fmt.Errorf("unable to update user %d: %w", id, err)
@@ -136,12 +164,12 @@ func DeleteUser(id int) error {
 	defer db.Close()
 
 	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			full_name TEXT NOT NULL,
-			email TEXT NOT NULL UNIQUE,
-			phone TEXT,
-			address TEXT
+		create table if not exists users (
+			id integer primary key autoincrement,
+			full_name text not null,
+			email text not null unique,
+			phone text,
+			address text
 		)`); err != nil {
 		return fmt.Errorf("unable to create table: %w", err)
 	}
