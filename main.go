@@ -11,5 +11,5 @@ func main() {
 	db.CreateInitialTable()
 
 	// ...
-	db.CreateUsers(5)
+	db.CreateUsers(50)
 }

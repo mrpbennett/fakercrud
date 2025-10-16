@@ -45,7 +45,6 @@ func CreateUsers(n int) error {
 	}
 	defer db.Close()
 
-	// Gerenerate Number of users
 	users := generateuser.GenerateUsers(n)
 
 	tx, err := db.Begin()
