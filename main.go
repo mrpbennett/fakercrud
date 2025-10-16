@@ -1,6 +1,8 @@
 package main
 
-import "github.com/mrpbennett/fakercrud/db"
+import (
+	"github.com/mrpbennett/fakercrud/db"
+)
 
 // main is the entry point that generates fake users and prints them as JSON.
 // It panics if the JSON marshalling step fails, keeping the example concise.
@@ -16,6 +18,4 @@ func main() {
 		// to use the CRUD endpoints.
 		db.InitialiseUsers(50)
 	}
-
-	// ...
 }

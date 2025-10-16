@@ -1,7 +1,10 @@
+// Package db provides helpers for managing the fakercrud SQLite database.
 package db
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -113,47 +116,52 @@ func CreateUser(fullname string, email string, phone string, address string) err
 	return nil
 }
 
-func ReadUser(id int) error {
+func ReturnUser(id int) (*generateuser.User, error) {
 	db, err := DBConnection()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer db.Close()
 
-	if _, err := db.Exec(`select * from users where id = %d`, id); err != nil {
-		return fmt.Errorf("unable to create table: %w", err)
+	var user generateuser.User
+
+	row := db.QueryRowContext(context.Background(), `
+		select full_name, email, phone, address
+		from users
+		where id = ?
+	`, id)
+
+	if err := row.Scan(&user.FullName, &user.Email, &user.Phone, &user.Address); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("user %d not found: %w", id, err)
+		}
+		return nil, fmt.Errorf("querying user %d: %w", id, err)
 	}
 
-	fmt.Println("Table users created successfully")
-
-	return nil
+	return &user, nil
 }
 
-func UpdateUser(id int, fullname string, email string, phone string, address string) error {
+func UpdateUser(id int, fullname string, email string, phone string, address string) (*generateuser.User, error) {
 	db, err := DBConnection()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer db.Close()
 
-	res, err := db.Exec(`
-		update users
-		set full_name = ?, email = ?, phone = ?, address = ?
-		where id = ?
-	`, id, fullname, email, phone, address)
-	if err != nil {
-		return fmt.Errorf("unable to update user %d: %w", id, err)
+	var user generateuser.User
+
+	row := db.QueryRowContext(context.Background(), `
+        update users
+        set full_name = ?, email = ?, phone = ?, address = ?
+        where id = ?`, fullname, email, phone, address, id)
+
+	if err := row.Scan(&user.FullName, &user.Email, &user.Phone, &user.Address); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("ERROR: Unable to update user %d - %w", id, err)
+		}
 	}
 
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("unable to determine rows affected for user %d: %w", id, err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("no user found with id %d", id)
-	}
-
-	return nil
+	return &user, nil
 }
 
 func DeleteUser(id int) error {
@@ -173,8 +181,6 @@ func DeleteUser(id int) error {
 		)`); err != nil {
 		return fmt.Errorf("unable to create table: %w", err)
 	}
-
-	fmt.Println("Table users created successfully")
 
 	return nil
 }
