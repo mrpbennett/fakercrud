@@ -116,6 +116,8 @@ func CreateUser(fullname string, email string, phone string, address string) err
 	return nil
 }
 
+// ReturnUser looks up a single user by id and returns the hydrated domain model.
+// It returns sql.ErrNoRows wrapped in context when the user does not exist.
 func ReturnUser(id int) (*generateuser.User, error) {
 	db, err := DBConnection()
 	if err != nil {
@@ -141,6 +143,9 @@ func ReturnUser(id int) (*generateuser.User, error) {
 	return &user, nil
 }
 
+// UpdateUser persists the provided field values for the user identified by id
+// and returns the updated user. Consumers should handle the wrapped sql.ErrNoRows
+// error when the user cannot be found.
 func UpdateUser(id int, fullname string, email string, phone string, address string) (*generateuser.User, error) {
 	db, err := DBConnection()
 	if err != nil {
@@ -150,20 +155,42 @@ func UpdateUser(id int, fullname string, email string, phone string, address str
 
 	var user generateuser.User
 
+	// ExecContext issues the write-only UPDATE, mirroring database/sql's intended usage.
+	result, err := db.ExecContext(context.Background(), `
+		update users
+		set full_name = ?, email = ?, phone = ?, address = ?
+		where id = ?`, fullname, email, phone, address, id)
+	if err != nil {
+		return nil, fmt.Errorf("updating user %d: %w", id, err)
+	}
+
+	// Capture RowsAffected to signal callers when the target id does not exist.
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("checking update result for user %d: %w", id, err)
+	}
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("user %d not found: %w", id, sql.ErrNoRows)
+	}
+
+	// Follow-up SELECT reloads the freshly updated row for the caller.
 	row := db.QueryRowContext(context.Background(), `
-        update users
-        set full_name = ?, email = ?, phone = ?, address = ?
-        where id = ?`, fullname, email, phone, address, id)
+		select full_name, email, phone, address
+		from users
+		where id = ?`, id)
 
 	if err := row.Scan(&user.FullName, &user.Email, &user.Phone, &user.Address); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("ERROR: Unable to update user %d - %w", id, err)
+			return nil, fmt.Errorf("user %d not found after update: %w", id, err)
 		}
+		return nil, fmt.Errorf("retrieving updated user %d: %w", id, err)
 	}
 
 	return &user, nil
 }
 
+// DeleteUser removes the user identified by id. If the user does not exist the
+// call still succeeds, mirroring standard SQL semantics.
 func DeleteUser(id int) error {
 	db, err := DBConnection()
 	if err != nil {
